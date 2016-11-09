@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>New Event Detection - Twitter</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <style>
+      .container {
+        max-width: 1000px;
+      }
+    </style>
+  </head>
+{% extends "layout.html" %}
+{% block body %}  
+  <body width="100%">
+    <div width="100%" class="container">
+      <h1>New Event Detection - Twitter</h1>
+      <form role="form" method='POST' action='/'>
+        <div width="100%" class="form-group">
+          <table width="300px">
+	      		{% for section in params %}
+		      		{% for param in section %}
+							  {% if param is string %}
+							    <tr width="100%">
+							        <td colspan="3" class="divider"><hr/><div style="background-color: lightblue;" >{{ param }}</div><hr /></td>
+							    </tr>
+						    
+		      		  {% else %}
+			      		<tr width="100%">
+			          <td width="40%">{{param.label}}:</td>
+			          <td width="10%">&nbsp;</td>
+			          <td width="50%"><input width="100px" type="text" name="{{param.name}}" class="form-control" id="{{param.name}}-box" placeholder="{{param.placeholder}}" style="max-width: 100px;" autofocus required value="{{param.default}}"></td>
+			          </tr>
+								{% endif %}
+		      		{% endfor %}
+	      		
+
+				    
+				    {% endfor %}
+      		</table>
+        </div>
+        <button type="submit" class="btn btn-default">Submit</button>
+      </form>
+      <br>
+      
+      {% for tweet in tweets %}
+        <h4 >{{ tweet._id }}</h4>
+      {% endfor %}
+      
+      <br/>
+      {% for error in errors %}
+        <h4 style='font-color:red'>{{ error }}</h4>
+      {% endfor %}
+
+    </div>
+    <script src="//code.jquery.com/jquery-2.2.1.min.js"></script>
+    <script src="//netdna.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+  </body>
+{% endblock %}  
+</html>

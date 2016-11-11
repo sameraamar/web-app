@@ -28,7 +28,7 @@
 				      		<tr width="100%">
 					          <td width="40%">{{temp[param].label}}:</td>
 					          <td width="10%">&nbsp;</td>
-					          <td width="50%"><input width="100%" type="text" name="{{param}}" class="form-control" id="{{param}}-box" placeholder="" autofocus required value="{{temp[param].value}}"></td>
+					          <td width="50%"><input width="100%" type="text" name="{{param}}" class="form-control" id="{{param}}-box" placeholder="" style="max-width: 100px;" autofocus required value="{{temp[param].value}}"></td>
 				          </tr>
 								{% endif %}
 		      		{% endfor %}

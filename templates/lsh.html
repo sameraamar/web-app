@@ -13,19 +13,53 @@
 {% extends "layout.html" %}
 {% block body %}  
   <body width="100%">
+	<a name="Home"></a>
     <div class="container" width="100%">
       <p>
-      <!--h1>Wordcount 3000</h1>
-      <form role="form" method='POST' action='/'>
+      </p>
+      <a href="\">New Request</a>
+      <h1 align="center">LSH - Cosine Results</h1>
+      <p align="center"><a href="#Parameters" >System Parameters</a></p>
+      <p align="center"><a href="#Thread_Details" >Thread Details</a></p>
+      <p align="center"><a href="#LSH_Tables" >LSH Tables</a></p>
+      <p><br>
+
+        <!--form role="form" method='POST' action='lsh_threads/'>
         <div class="form-group">
           <input type="text" name="k" class="form-control" id="hyperplanes-box" placeholder="Hyperplanes..." style="max-width: 300px;" autofocus required>
         </div>
         <button type="submit" class="btn btn-default">Submit</button>
       </form-->
-      <br>
-      <strong>Number of threads: </strong>{{threads["threads_count"]}} </p>
-      <p><strong>Threads time-slot:</strong> {{ '%0.3f' % threads.thread_timeslot}}  seconds which is  {{ '%0.3f' % (threads.thread_timeslot / 60.0) }}  minutes </p>
-      <p>&nbsp;</p>
+      </p>
+	  	<a name="Parameters"></a>
+      <table width="100%" border="2">
+        <tr>
+          <th colspan="2" scope="col" ><div align="center" style="background-color:#33FF00;color:#000033">System Paremeters</div></th>
+        </tr>
+			{% for section in params %}
+        <tr>
+          <td colspan="2"><div align="center" style="background-color:#660000;color:#FFFFFF">{{section}}</div></td>
+        </tr>
+					{% for p in params[section] %}
+	        <tr>
+	          <td width="24%">{{params[section][p]['label']}}</td>
+	          <td width="42%">{{params[section][p]['value']}}</td>
+	        </tr>
+				{% endfor %}   
+        <tr>
+          <td colspan="2"></td>
+        </tr>
+			{% endfor %}   
+        </tr>
+      </table>
+	  <a name="Thread_Details"></a>
+      <h2 align="center">Thread Details</h2>
+      {% set tmp = threads.get('thread_timeslot', 0) %}
+      {% set hours = (tmp / 3600.0) %} 
+			{% set minutes = (tmp % 3600) / 60.0 %} 
+			{% set seconds = (tmp % 3600) % 60 %} 	
+      <p><strong></strong></p>
+      <p><strong>Documents time frame:</strong> {{ '{0:.0f}:{1:.0f}:{2:.0f}'.format(hours, minutes, seconds) }} (HH:MM:SS) </p>
       <table width="100%" border="2">
         <caption>&nbsp;
         </caption>
@@ -34,7 +68,7 @@
           <th colspan="7" align="center" scope="col"><div align="center">Threads</div></th>
         </tr>
         <tr>
-          <th width="3%" align="center" scope="col">#</th>
+          <th width="7%" align="center" scope="col">#</th>
           <th width="6%" scope="col">Size</th>
           <th width="10%" scope="col">Entropy</th>
           <th width="8%" scope="col">Users</th>
@@ -45,7 +79,7 @@
       {% set i = 0 %}
       {% for thread in threads._list_ %}
         <tr>
-        	<th align="center" scope="row"><div align="center"><a href="#Thread_{{ i }}">{{i}}</a></div></th>
+        	<th align="center" scope="row"><div align="center"><a href="#Thread_{{ i }}">Thread {{i}}</a></div></th>
         	<td><div align="center">{{ thread.size }}</div></td>
         	{% set color = 'black' %}
         	{% if  thread.entropy > 3.5 %}
@@ -60,7 +94,7 @@
         {% set i = i+1 %}
       {% endfor %}
       </table>
-      <p>&nbsp;</p>
+      <h2 align="center">&nbsp;</h2>
       {% set i = 0 %}
       {% for thread in threads._list_ %}
       	<a name="Thread_{{i}}"></a>
@@ -88,22 +122,67 @@
 		        </tr>
 	        	{% set count = count + 1 %}
 	        {% endfor %}
-      	</table>
+   	  </table>
+      <p align="right"><a href="#Home">Home...</a> , <a href="#Thread_Details">Up...</a></p>
        	<p>&nbsp;</p>
-       	 
        	  {% set i = i+1 %}
       {% endfor %}
+
+
       
           </p>
-       	  <p>&nbsp;</p>
+	  	<a name="LSH_Tables"></a>
+      <p>&nbsp;</p>
+      <h2 align="center"> LSH Tables</h2>
+      
+      <p>Corpus size is {{ tables.dimension }}  </p>
+      <p>There are {{ tables.tables|length }} tables:
+      {% set idx = 1 %}
+      {% for table in tables.tables %}
+      	<a href="#Table_{{idx}}">Table {{idx}}</a> ,
+      	{% set idx = idx+1 %}
+			{% endfor %}
+	  </p>
+      {% set idx = 1 %}
+      {% set tables_itr = tables.tables %}
+      
+      {% for table in tables_itr %}
+	      <a name="Table_{{idx}}"></a>
+	      <h3 align="left">Table {{idx}}</h3>
+	      <p><strong>number of buckets:</strong> {{ table.buckets|length }} </p>
+	        {% for bucket in table.buckets %}
+	        <p/>
+			        <table width="100%" border="2">
+			          <tr>
+			            <th colspan="2" scope="col"><div style="background-color:#339966" align="center">[{{bucket.hashcode}}]:  {{ bucket.documents|length }} documents </div></th>
+		              </tr>
+
+		        	{% for something in bucket.documents %}
+				          <tr>
+				            <th scope="row" width="200px">ID</th>
+				            <td>Text</td>
+				          </tr>
+				          <tr>
+				            <th scope="row">{{something.ID}}</th>
+				            <td>{{something.text}}</td>
+				          </tr>
+				      {% endfor %}
+      </table>
+      <p align="right"><a href="#Home">Home...</a> , <a href="#LSH_Tables">Up...</a></p>
+	      	{% endfor %}
+	       	{% set idx = idx + 1 %}
+	      {% endfor %}
+      <p align="right"><a href="#Home">Home...</a> , <a href="#LSH_Tables">Up...</a></p>
       <br/>
       {% for error in errors %}
         <h4 style='font-color:red'>{{ error }}</h4>
       {% endfor %}
 
   </div>
+  <div id="jsoneditor" style="width: 400px; height: 400px;"></div>
     <script src="//code.jquery.com/jquery-2.2.1.min.js"></script>
     <script src="//netdna.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
-  </body>
+
+    </body>
 {% endblock %}  
 </html>

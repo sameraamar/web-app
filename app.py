@@ -3,6 +3,10 @@ from flask import Flask, flash, redirect, render_template, request, url_for, jso
 from flask_pymongo import PyMongo
 import time
 
+import json
+import copy
+import sys
+
 
 
 app = Flask(__name__)
@@ -10,70 +14,29 @@ app = Flask(__name__)
 app.config['MONGO_HOST'] = 'localhost'
 app.config['MONGO_PORT'] = 27017
 
-app.config['MONGO_DBNAME'] = 'events2012'
+app.config['MONGO_DBNAME'] = 'logger'
 app.config['TEMPLATES_AUTO_RELOAD'] = True
-collname = 'posts'
+collname = 'runs'
 
 app.secret_key = 'some_secret'
 
 mongo = PyMongo(app)
 
-values = []
-
-#db = mongo[dbname]
-#coll = mongo.db[collname]
-
-#client = MongoClient(host, int(port))
-#db = client[dbname]
-#dbcoll = db[collname]
-
-#from models import Result
-
-
-#lsh_param =  [
-#               {'name' : 'k', 'default' : 10, 'label' : 'Hyperplane', } ,
-#               {'name' : 'maxB', 'default' : 500, 'label' : 'Max bucket size', 'placeholder' : ''} ,
-#               {'name' : 'tables', 'default' : 64, 'label' : 'Number of Hashtables', 'placeholder' : ''} ,
-#               {'name' : 'maxB', 'default' : 500, 'label' : 'Max bucket size', 'placeholder' : ''} 
-#             ]
-#
-#
-#thread_param = [             
-#               {'name' : 'max_threads', 'default' : 2000, 'label' : 'Max Threads', 'placeholder' : ''} ,
-#               {'name' : 'max_docs', 'default' : 10, 'label' : 'Max Input Documents', 'placeholder' : ''} ,
-#               {'name' : 'threshold', 'default' : 0.5, 'label' : 'Threashold', 'placeholder' : ''} 
-#               ]
-#db_param = [
-#               {'name' : 'dbhost', 'default' : 'localhost', 'label' : 'Mongo DB Host', 'placeholder' : ''} ,
-#               {'name' : 'dbport', 'default' : 27017, 'label' : 'Mongo DB Port', 'placeholder' : ''} ,
-#               {'name' : 'dbname', 'default' : 'events2012', 'label' : 'MongoDB-DB Name', 'placeholder' : ''} ,
-#               {'name' : 'dbcoll', 'default' : 'posts', 'label' : 'MongoDB-Collection', 'placeholder' : ''} 
-#            ]
-#
-#
-#parameters = {
-#              'LSH Parameters' : lsh_param
-#              ,
-#              'Thread Parameters': thread_param 
-#              ,
-#              'Connection Details': db_param
-#             }
-#               #{'name' : 'page', 'default' : 0, 'label' : 'Page', 'placeholder' : ''} 
-             
 
 
 lsh = {
           'title' : 'LSH parameters',
           'k' :         { 'value' : 13, 'label' : 'Hyperplanes' } ,
           'maxB' :      { 'value' : 500, 'label' : 'Max bucket size' } ,
-          'tables' :    { 'value' : 64, 'label' : 'Number of Hashtables' } 
+          'tables' :    { 'value' : 64, 'label' : 'Number of Hashtables' } ,
+          'run' :       {'value' : 0, 'label' : 'Forground'} 
       }
 
 thread = {
           'title' : 'Thread',
           'max_threads' : { 'value' : 2000, 'label' : 'Max Threads' },
           'max_docs' : { 'value' : 10, 'label' : 'Max Input Documents' },
-          'threshold' : { 'value' : 0.5, 'label' : 'Threashold' }
+          'threshold' : { 'value' : 0.6, 'label' : 'Threashold' }
          }      
 
 mongodb = {
@@ -91,30 +54,26 @@ parameters = {
              }
 
 
-import json
-
 @app.route('/', methods=['GET', 'POST'])
 def index():
     errors = []
     results = {}
     
     if request.method == 'POST':
-        #argstr = ''
-        #for section in parameters:
-            #for p in section.params:
-            #    v = request.form[p['name']]
-            #    values.append((p, v))
-            #    argstr += p['name'] + '=' + v + '&'
-            #if not str.isnumeric( k ) or int( k ) <= 2:
-            #    errors.append( 'Invalid number of hyperplanes' )
-            #flash("Your request was submitted successfuly")
-            #print('redirect')
-        p_str = json.dumps(parameters)
-        return redirect(url_for('lsh')+'?page=0&params='+p_str) # argstr[:-1])
+        argstr = ''
+        #params = copy.deepcopy( parameters )
+        for cntrl in request.form:
+            #print (cntrl, request.form[cntrl])
+            argstr += cntrl + '=' + request.form[cntrl] + '&'
+        argstr = argstr[:-1]  # remove redundant '&' char
+
+        if request.form['run']=='1' or request.form['run']==1:
+            return redirect(url_for('lsh')+'?'+argstr)
+
+        return redirect(url_for('lsh_bg')+'?'+argstr)
         
     return render_template('index.html', errors=errors, tweets=results, params=parameters)
 
-import sys
 
 sys.path.append("../Twitter-New-Event-Detection")
 import NED
@@ -124,89 +83,188 @@ model = None
 @app.route('/lsh')
 def lsh():
     #flash("Please be patient...")
-    results, params = lsh_run()
+    threads, tables, params = lsh_run()
     #flash("done...")
-    return render_template('lsh.html', threads=results, params=params)
+    return render_template('lsh.html', threads=threads, params=params, tables=tables)
+
+import multirun
+@app.route('/lsh_bg')
+def lsh_bg():
+    flash("Refresh from time to time...")
+    
+    lsh_run(bg=True)
+    
+    #flash("done...")
+    return redirect(url_for('runs'))
+
+#import pprint 
 
 @app.route('/lsh-json')
 def lsh_json():
-    results, params = lsh_run()
-    return jsonify(results)
+    threads, tables, params = lsh_run()
+    information = {}
+    information['threads'] = threads
+    information['tables'] = tables
+    #pprint.pprint(tables)
+    return jsonify(information)
     
-def lsh_run():
-    p_str = request.args.get('params', type=str)
-    params = json.loads(p_str)
-                       
+def lsh_run(bg=False):
+
+    params = copy.deepcopy( parameters )
+
+    for p in request.args:
+        for section in params:
+            for param in params[section]:
+                if param == p:
+                    mytype = type(params[section][param]['value'])
+                    params[section][param]['value'] = request.args.get(p, type=mytype)
+                    
+    max_threads = request.args.get('max_threads', type=int)
     k = request.args.get('k', type=int)
-    print(k)
-    params['lsh']['k']['value'] = k 
-    maxB = params['lsh']['maxB']['value'] = request.args.get('maxB', type=int)
-    tables = params['lsh']['tables']['value']
-
-    epsilon = params['thread']['threshold']['value']
-    max_threads = params['thread']['max_threads']['value']
-    max_docs = params['thread']['max_docs']['value']
-
-    #mongodb
-    dbhost =  params['mongodb']['dbhost']['value']
-    dbport =  params['mongodb']['dbport']['value']
-    dbname =  params['mongodb']['dbname']['value']
-    dbcoll =  params['mongodb']['dbcoll']['value']
-
-    print(params)
-
-    #k = request.args.get('k', type=int)
-    #maxB = request.args.get('maxB', type=int)
-    #tables = request.args.get('tables', type=int)
-    #epsilon = request.args.get('threshold', type=float)
+    maxB = request.args.get('maxB', type=int)
+    tables = request.args.get('tables', type=int)
+    epsilon = request.args.get('threshold', type=float)
     #%%
-    #max_threads = request.args.get('max_threads', type=int)
-    #max_docs = request.args.get('max_docs', type=int)
+    max_docs = request.args.get('max_docs', type=int)
+
+    dbhost = request.args.get('dbhost', type=str)
+    dbport = request.args.get('dbport', type=int)
+    dbcoll = request.args.get('dbcoll', type=str)
+    dbname = request.args.get('dbname', type=str)
 
     page =  request.args.get('page', 0, type=int)
-    
-    print(k, maxB, tables, epsilon, max_docs, page)
-    print(model, page, max_docs, dbhost, dbport, dbname, dbcoll, max_threads)
-    
-    global model
-    if False and (model == None or page == 0):
-        model = NED.init_mongodb(k, maxB, tables, epsilon, max_docs, page)
-        NED.execute(model, page, max_docs, dbhost, dbport, dbname, dbcoll, max_threads)
-        
-    results = model.jsonify(max_threads)
-    return results, params
-    
-@app.route('/test')
-def test():    
-    errors = []
 
-    k = request.args.get('k', 10, type=int)
-    #b = request.args.get('b', 0, type=int)
+    #save to database
+    #timestamp = time.time()
+    coll = mongo.db[collname]
+    started = time.strftime("%Y-%m-%d %H:%M:%S")
+    run_id = 'LSH'+ started.replace('-', '').replace(' ', '').replace(':', '')
+    coll.insert_one({ '_id' : run_id, 
+                      'started' : started, 
+                      'ended' : '',
+                      'status': 'New', 
+                      'threads' : {}, 
+                      'tables': {},
+                      'params' : params
+                     })
+    print( 'Parameters', k, maxB, tables, epsilon, max_docs, page )
+    model = NED.init_mongodb(k, maxB, tables, epsilon, max_docs, page)
+    coll.update_one({ '_id': run_id }, 
+                    { '$set': {
+                               'status': 'Running'
+                               }
+                    }, upsert=False)
+    
+    if bg == True:
+        invokes = []
+        invokes.append( (execute, model, page, max_docs, dbhost, dbport, dbname, dbcoll, max_threads, coll, run_id, params) )
+        multirun.run_bg(invokes)
+        return 
+    
+    return execute(model, page, max_docs, dbhost, dbport, dbname, dbcoll, max_threads, coll, run_id, params)
+
+
+def execute(model, page, max_docs, dbhost, dbport, dbname, dbcoll, max_threads, coll, run_id, params):    
+    threads = tables = {}
+    print ( page, max_docs, dbhost, dbport, dbname, dbcoll, max_threads, coll, run_id, params )
+    try:
+        NED.execute(model, page, max_docs, dbhost, dbport, dbname, dbcoll, max_threads)
+            
+        threads, tables = model.jsonify(max_threads)
+        coll.update_one({ '_id': run_id }, 
+                        { '$set': {
+                                   'status': 'Finished',
+                                   'ended' : time.strftime("%Y-%m-%d %H:%M:%S"),
+                                   'threads': threads,
+                                   }
+                        }, upsert=False)
+    except Exception as e:
+        coll.update_one({ '_id': run_id }, 
+                        { '$set': {
+                                   'status' : 'Failed',
+                                   'error' : str(e)
+                                   }
+                        }, upsert=False)
+        
     
     try:
+        coll.update_one({ '_id': run_id }, 
+                        { '$set': {
+                                   'tables' : tables
+                                   }
+                        }, upsert=False)
+    except Exception as e:
+        coll.update_one({ '_id': run_id }, 
+                        { '$set': {
+                                   'status' : 'Warning',
+                                   'error' : str(e)
+                                   }
+                        }, upsert=False)
+        pass
+        
+    return threads, tables, params
+    
+@app.route('/display')
+def logs_run():  
+    errors = []
+    threads = {}
+    params = {}
+    tables = {}
+
+    run_id = request.args.get('id', None, type=str)
+    if run_id == None:
+        errors.append('Parameter is missing: id')
+        return jsonify(errors=errors)
+        
+    try:
         coll = mongo.db[collname]
-        cursor = coll.find({}).limit(k)
+        print(run_id)
+        cursor = coll.find({'_id' : run_id})
+        if cursor != None:
+            #print(cursor.count())
+            for c in cursor:
+                threads = c['threads']
+                params = c['params']
+                tables = c['tables']
+                #print (tables)
     except Exception as e:
         errors.append(str(e))
         pass
     
-    print('going to sleep')
-    time.sleep(3)
-    print('wake up')
+
+    return render_template('lsh.html', threads=threads, params=params, tables=tables)
+            
+    #return jsonify(runs=runs, errors=errors)
+
     
-    if cursor != None:
+@app.route('/runs')
+def runs():  
+    errors = []
+    runs = []
+    page = request.args.get('page', 0, type=int)
+    pagesize = request.args.get('pagesize', 10, type=int)
+    
+    
+    try:
+        coll = mongo.db[collname]
+        cursor = coll.find({}).skip(page * pagesize)#.sort({'_id' : 1})
+        if cursor != None:
+            for c in cursor:
+                temp = {}
+                temp['_id'] = c['_id']
+                temp['status'] = c['status']
+                temp['started'] = c['started']
+                temp['ended'] = c.get('ended', '')
+                temp['params'] = c['params']
+                runs.append(temp)
         
-        results = {}
-        results['count'] = cursor.count()
-        results['values'] = values
-        results['tweets'] = []
-        for c in cursor:
-            if c['_id'] == -1 or c.get('json', None) == None:
-                continue 
+    except Exception as e:
+        errors.append(str(e))
+        raise
+    
+    return render_template('runs.html', runs=runs, errors=errors)
             
-            results['tweets'].append( { 'id' : c['_id'], 'text': c['json']['text'] } )
-            
-    return jsonify(result=results)
+    #return jsonify(runs=runs, errors=errors)
 
 if __name__ == '__main__':
     app.run()

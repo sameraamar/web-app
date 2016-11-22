@@ -1,0 +1,78 @@
+﻿<!DOCTYPE html>
+<html>
+  <head>
+    <title>Display execution details</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <style>
+      .container {
+        max-width: 1000px;
+      }
+    .style1 {font-size: small}
+    </style>
+  </head>
+{% extends "layout.html" %}
+{% block body %}  
+  <body width="100%">
+		<a name="Home"></a>
+	  <div class="container" width="100%">
+	  	
+	  	
+	  	
+	  	<p></p>
+	  	<h1 align="center">Executions...</h1>
+	  	<table width="100%" border="2">
+          <tr>
+            <th width="5%" scope="col"><div align="center" class="style1">Index</div></th>
+            <th width="15%" scope="col"><div align="center">ID</div></th>
+            <th width="6%" scope="col"><div align="center">Status</div></th>
+            <th width="15%" scope="col"><div align="center">Started</div></th>
+            <th width="15%" scope="col"><div align="center">Ended</div></th>
+            <th width="15%" scope="col"><div align="center">Number of tables </div></th>
+            <th width="15%" scope="col"><div align="center">Hyperplanes</div></th>
+            <th width="15%" scope="col"><div align="center">Documents</div></th>
+          </tr>
+          {% set idx = 1 %}
+          {% for r in runs %}
+	          <tr>
+	            <th scope="row"><div align="center" class="style1">{{idx}}</div></th>
+	            <td><div align="center"><a href="display?id={{r._id}}">{{r._id}}</a></div></td>
+	            <td><div align="center"
+								{% if r.status == 'Warning' %}
+									style="background-color:yellow"
+								{% elif r.status == 'Running' %}
+									style="background-color:orange"
+								{% elif r.status == 'New' %}
+									style="background-color:orange"
+								{% elif r.status == 'Finished' %}
+									style="background-color:green"
+								{% elif r.status == 'Failed' %}
+									style="background-color:red"
+								{% endif %}
+	            	>
+	            	{{r.status}}</div></td>
+	            <td><div align="center">{{r.started}}</div></td>
+	            <td><div align="center">{{r.ended}}</div></td>
+	            <td><div align="center">{{r.params.lsh.tables.value}}</div></td>
+	            <td><div align="center">{{r.params.lsh.k.value}}</div></td>
+	            <td><div align="center">{{r.params.thread.max_docs.value}}</div></td>
+	          </tr>
+	          {% set idx = idx + 1 %}
+	        {% endfor %}
+
+        </table>
+      <p></p>
+	  	<p><a href='/runs'>Refresh list</a> , <a href="/	">New Request... </a> </p>
+	  	<p></p>
+	  	{% for e in errors %}
+	  		Error: {{e}}
+	  	{% endfor %}
+	  	
+  </div>
+	  <div id="jsoneditor" style="width: 400px; height: 400px;"></div>
+	  <script src="//code.jquery.com/jquery-2.2.1.min.js"></script>
+	  <script src="//netdna.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+
+  </body>
+{% endblock %}  
+</html>

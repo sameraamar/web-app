@@ -2,7 +2,7 @@
 from flask import Flask, flash, redirect, render_template, request, url_for, jsonify
 from flask_pymongo import PyMongo
 import time
-
+import traceback
 import json
 import copy
 import sys
@@ -34,17 +34,19 @@ lsh = {
 
 thread = {
           'title' : 'Thread',
-          'max_threads' : { 'value' : 2000, 'label' : 'Max Threads' },
           'max_docs' : { 'value' : 10, 'label' : 'Max Input Documents' },
-          'threshold' : { 'value' : 0.6, 'label' : 'Threashold' }
+          'page' :{ 'value' : 0, 'label' : 'Input Documents Page' },
+          'resent_documents' : { 'value' : 1000, 'label' : 'Search Resent Documents' },
+          'max_threads' : { 'value' : 2000, 'label' : 'Max Threads' },
+          'threshold' : { 'value' : 0.6, 'label' : 'Threshold' }
          }      
 
 mongodb = {
           'title' : 'Mongo DB',
-          'dbhost' : { 'value' : 'localhost', 'label' : 'Mongo DB Host' },
-          'dbport' : { 'value' : 27017, 'label' : 'Mongo DB Port' },
           'dbname' : { 'value' : 'events2012', 'label' : 'MongoDB-DB Name' },
-          'dbcoll' : { 'value' : 'posts', 'label' : 'MongoDB-Collection' }
+          'dbcoll' : { 'value' : 'posts', 'label' : 'MongoDB-Collection' },
+          'dbhost' : { 'value' : 'localhost', 'label' : 'Mongo DB Host' },
+          'dbport' : { 'value' : 27017, 'label' : 'Mongo DB Port' }
           }
           
 parameters = {
@@ -72,7 +74,7 @@ def index():
 
         return redirect(url_for('lsh_bg')+'?'+argstr)
         
-    return render_template('index.html', errors=errors, tweets=results, params=parameters)
+    return render_template('index.html', errors=errors, tweets=results, params=dict(sorted(parameters.items(), reverse=False)))
 
 
 sys.path.append("../Twitter-New-Event-Detection")
@@ -85,7 +87,7 @@ def lsh():
     #flash("Please be patient...")
     threads, tables, params = lsh_run()
     #flash("done...")
-    return render_template('lsh.html', threads=threads, params=params, tables=tables)
+    return render_template('lsh.html', threads=threads, params=dict(sorted(params.items(), reverse=False), tables=tables))
 
 import multirun
 @app.route('/lsh_bg')
@@ -123,9 +125,10 @@ def lsh_run(bg=False):
     k = request.args.get('k', type=int)
     maxB = request.args.get('maxB', type=int)
     tables = request.args.get('tables', type=int)
-    epsilon = request.args.get('threshold', type=float)
+    threshold = request.args.get('threshold', type=float)
     #%%
     max_docs = request.args.get('max_docs', type=int)
+    resent_documents = request.args.get('resent_documents', type=int)
 
     dbhost = request.args.get('dbhost', type=str)
     dbport = request.args.get('dbport', type=int)
@@ -147,8 +150,8 @@ def lsh_run(bg=False):
                       'tables': {},
                       'params' : params
                      })
-    print( 'Parameters', k, maxB, tables, epsilon, max_docs, page )
-    model = NED.init_mongodb(k, maxB, tables, epsilon, max_docs, page)
+    #print( 'Parameters', k, maxB, tables, threshold, max_docs, page )
+    model = NED.init_mongodb(k, maxB, tables, threshold, max_docs, page, resent_documents)
     coll.update_one({ '_id': run_id }, 
                     { '$set': {
                                'status': 'Running'
@@ -179,12 +182,14 @@ def execute(model, page, max_docs, dbhost, dbport, dbname, dbcoll, max_threads, 
                                    }
                         }, upsert=False)
     except Exception as e:
+        formatted_lines = traceback.format_exc().splitlines()
         coll.update_one({ '_id': run_id }, 
                         { '$set': {
                                    'status' : 'Failed',
-                                   'error' : str(e)
+                                   'error' : '\n'.join(formatted_lines)
                                    }
                         }, upsert=False)
+        pass
         
     
     try:
@@ -194,10 +199,12 @@ def execute(model, page, max_docs, dbhost, dbport, dbname, dbcoll, max_threads, 
                                    }
                         }, upsert=False)
     except Exception as e:
+        #exc_type, exc_value, exc_traceback = sys.exc_info()
+        formatted_lines = traceback.format_exc().splitlines()
         coll.update_one({ '_id': run_id }, 
                         { '$set': {
                                    'status' : 'Warning',
-                                   'error' : str(e)
+                                   'error' : '\n'.join(formatted_lines)
                                    }
                         }, upsert=False)
         pass
@@ -218,7 +225,7 @@ def logs_run():
         
     try:
         coll = mongo.db[collname]
-        print(run_id)
+        #print(run_id)
         cursor = coll.find({'_id' : run_id})
         if cursor != None:
             #print(cursor.count())
@@ -226,13 +233,14 @@ def logs_run():
                 threads = c['threads']
                 params = c['params']
                 tables = c['tables']
+                run = c
                 #print (tables)
     except Exception as e:
         errors.append(str(e))
         pass
     
 
-    return render_template('lsh.html', threads=threads, params=params, tables=tables)
+    return render_template('lsh.html', details=run, threads=threads, params=params, tables=tables)
             
     #return jsonify(runs=runs, errors=errors)
 
@@ -256,6 +264,7 @@ def runs():
                 temp['started'] = c['started']
                 temp['ended'] = c.get('ended', '')
                 temp['params'] = c['params']
+                temp['error'] = c.get('error', '')
                 runs.append(temp)
         
     except Exception as e:
@@ -267,4 +276,4 @@ def runs():
     #return jsonify(runs=runs, errors=errors)
 
 if __name__ == '__main__':
-    app.run()
+    app.run(port=5000)

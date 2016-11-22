@@ -12,16 +12,21 @@
   </head>
 {% extends "layout.html" %}
 {% block body %}  
+
   <body width="100%">
 	<a name="Home"></a>
     <div class="container" width="100%">
       <p>
       </p>
+        {% set params = details.params %}
+        {% set threads = details.threads %}
+        {% set tables = details.tables %}
       <a href="\">New Request</a>
       <h1 align="center">LSH - Cosine Results</h1>
       <p align="center"><a href="#Parameters" >System Parameters</a></p>
       <p align="center"><a href="#Thread_Details" >Thread Details</a></p>
-      <p align="center"><a href="#LSH_Tables" >LSH Tables</a></p>
+      <p align="center"><a href="#LSH_Tables">LSH Tables</a></p>
+      <p align="center">Execution time: <b> {{details.started}}</b> - <b>{{details.ended}}</b></p>
       <p><br>
 
         <!--form role="form" method='POST' action='lsh_threads/'>
